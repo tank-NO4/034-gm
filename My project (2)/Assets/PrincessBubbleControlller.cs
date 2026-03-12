@@ -71,6 +71,7 @@ public class PrincessBubbleController : MonoBehaviour
         {
             // 随机选择一个形状
             int newShape = Random.Range(0, 3);
+            Debug.Log("切换到形状:"+newShape);
             // 先重置所有形状
             SetAllShapesInactive();
             // 激活新形状
