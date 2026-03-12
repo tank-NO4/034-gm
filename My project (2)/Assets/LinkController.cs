@@ -2,121 +2,113 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent(typeof(Rigidbody2D))]
-public class LinkController : MonoBehaviour
+public class LinkShapeShrink : MonoBehaviour
 {
-    private bool _hasPermanentlyShrunk = false; // 永久缩放锁定标记（新增）
-    private bool _hasPermanentlyChanged = false; // 永久变形标记（之前要求的）
-    private float _shapeChangeBaseSize; // 记录「变形那一刻」的玩家大小（作为缩放宽基）
-    [Header("链接设置")]
+    [Header("绳索设置")]
     public float ropeDefaultLength = 2f;
     public float ropeForce = 15f;
 
-    [Header("大小比例参数")]
-    public float playerSize = 1f; // 你的大小参数
+    [Header("大小参数")]
+    public float playerSize = 1f;
+    private float _targetPlayerSize;
+    private float _shapeChangeBaseSize; // 每次链接的缩放宽基
+
+    [Header("变形设置")]
+    public Sprite defaultPlayerSprite;
+    public float shapeChangeDelay = 0.5f;
+    private Vector3 _targetScale;
+    private SpriteRenderer _playerSpriteRenderer;
+    private bool _isShapeChanged = false;
+
+    [Header("链接缩小规则")]
+    public float linkDurationThreshold = 1f;
+    public float sizeReductionPerSecond = 0.1f;
+    public float shrinkAnimationSpeed = 2f;
+
+    [Header("标签")]
+    public string groundTag = "Ground";
+    public string wallTag = "Wall";
 
     private Rigidbody2D _rb;
     private GameObject _linkedTarget;
     private bool _isLinking;
     private LineRenderer _line;
-    [Header("变形设置")]
-    public Sprite defaultPlayerSprite; // 玩家默认的精灵
-    public float shapeChangeDelay = 0.5f; // 开始变形的延迟时间（在超过阈值后多久开始变）
-    private Vector3 _targetScale;
-   
-    private SpriteRenderer _playerSpriteRenderer; // 玩家的SpriteRenderer组件
-    private Sprite _targetShapeSprite; // 目标形状的精灵
-    private bool _isShapeChanged = false; // 是否已变形
-
-    [Header("链接超时设置")]
-    public float linkDurationThreshold = 1f; // 链接持续时间阈值，单位秒
-    public float sizeReductionPerSecond = 0.1f; // 每秒减少的大小参数
-    public float minPlayerSize = 0.9f; // 玩家最小大小，防止缩到0
-    public float shrinkAnimationSpeed = 2f; // 缩小动画的速度
-
-    // 用于判断链接对象是否为地面/墙的标签
-    public string groundTag = "Ground";
-    public string wallTag = "Wall";
-
-    // 内部状态
-    private float _currentLinkDuration = 0f; // 当前链接持续时间
-    private float _targetPlayerSize; // 用于平滑过渡的目标大小
-  
-                                        
-  
-  
-
+    private float _currentLinkDuration = 0f;
+    public int currentShape = 0;
+    
 
     void Awake()
     {
+        Debug.Log("LinkShapeShrink脚本已加载！");
         _rb = GetComponent<Rigidbody2D>();
         _line = GetComponent<LineRenderer>();
         if (_line == null) _line = gameObject.AddComponent<LineRenderer>();
-
         _line.positionCount = 2;
         _line.startWidth = 0.1f;
         _line.enabled = false;
 
-        _targetPlayerSize = playerSize;
-        _targetScale = transform.localScale;
-
-        // 初始化变形相关组件
         _playerSpriteRenderer = GetComponent<SpriteRenderer>();
-        if (_playerSpriteRenderer == null)
+        if (_playerSpriteRenderer != null)
+            defaultPlayerSprite = _playerSpriteRenderer.sprite;
+
+        _targetPlayerSize = transform.localScale.x;
+        _shapeChangeBaseSize = _targetPlayerSize;
+        _targetScale = Vector3.one * _targetPlayerSize;
+       
+            Debug.Log("_rb: " + (_rb != null));
+            Debug.Log("_line: " + (_line != null));
+            Debug.Log("_playerSpriteRenderer: " + (_playerSpriteRenderer != null));
+      
+    }
+    void TryLinkTarget()
+    {
+            // 正确获取鼠标世界坐标的写法（2D游戏必加）
+            Vector3 mouseScreenPos = Input.mousePosition;
+        mouseScreenPos.z = Mathf.Abs(transform.position.z - Camera.main.transform.position.z);
+        Vector2 mouseWorldPos = Camera.main.ScreenToWorldPoint(mouseScreenPos);
+
+
+        // 可视化点选位置（画一个小十字）
+        Debug.DrawLine(mouseWorldPos - Vector2.up * 0.1f, mouseWorldPos + Vector2.up * 0.1f, Color.green, 2f);
+        Debug.DrawLine(mouseWorldPos - Vector2.right * 0.1f, mouseWorldPos + Vector2.right * 0.1f, Color.green, 2f);
+
+        // 纯点选：只检测鼠标点位置
+        int layerMask = 1 << LayerMask.NameToLayer("Default");
+        // ✅ 把 RaycastHit2D 改成 Collider2D，接收 OverlapPoint 的返回值
+        Collider2D hitCollider = Physics2D.OverlapPoint(mouseWorldPos, layerMask);
+
+        if (hitCollider != null)
         {
-            Debug.LogError("玩家对象缺少SpriteRenderer组件！");
+            // ✅ 直接用 hitCollider.gameObject / hitCollider.tag，不需要 .collider
+            Debug.Log("🎯 点选命中：" + hitCollider.gameObject.name + "，标签：" + hitCollider.tag);
+            if (hitCollider.CompareTag("Linkable"))
+            {
+                _linkedTarget = hitCollider.gameObject;
+                _line.enabled = true;
+                Debug.Log("✅ 成功链接！");
+            }
+            else
+            {
+                Debug.Log("⚠️ 命中物体，但标签不是 Linkable");
+            }
         }
         else
         {
-            defaultPlayerSprite = _playerSpriteRenderer.sprite;
+            Debug.Log("❌ 点选模式：鼠标位置没有任何碰撞体");
         }
-        _rb = GetComponent<Rigidbody2D>();
-        _line = GetComponent<LineRenderer>();
-        if (_line == null) _line = gameObject.AddComponent<LineRenderer>();
 
-        _line.positionCount = 2;
-        _line.startWidth = 0.1f;
-        _line.enabled = false;
-        // 新增：初始化目标大小为「玩家当前缩放的X轴」（2D物体缩放通常均匀）
-        _targetPlayerSize = transform.localScale.x;
-        // 初始化基准大小为当前大小
-        _shapeChangeBaseSize = transform.localScale.x;
     }
 
-
-
     void Update()
-
     {
-
         if (Input.GetMouseButtonDown(0))
-        {
-            Debug.Log("鼠标左键被按下");
             TryLinkTarget();
-        }
-
+        
         if (Input.GetMouseButton(0) && _linkedTarget != null)
         {
             _isLinking = true;
             UpdateRopeVisual();
-        }
-        else
-        {
-            BreakLink();
-
-        }
-
-        // 点击选中
-        if (Input.GetMouseButtonDown(0))
-        {
-            TryLinkTarget();
-        }
-
-        // 长按维持
-        if (Input.GetMouseButton(0) && _linkedTarget != null)
-        {
-            _isLinking = true;
-            UpdateRopeVisual();
+            Debug.Log("检测到鼠标左键正在点击");
         }
         else
         {
@@ -133,33 +125,20 @@ public class LinkController : MonoBehaviour
         }
         else
         {
-            // 当链接断开时，重置计时器和大小
             _currentLinkDuration = 0f;
-            _targetScale = Vector3.one; // 假设初始缩放为1
         }
 
-        // 平滑过渡到目标大小和缩放
+        // 平滑缩放
         playerSize = Mathf.Lerp(playerSize, _targetPlayerSize, shrinkAnimationSpeed * Time.fixedDeltaTime);
         transform.localScale = Vector3.Lerp(transform.localScale, _targetScale, shrinkAnimationSpeed * Time.fixedDeltaTime);
-
-
-
-    } 
-
-    // 射线选中目标
-    void TryLinkTarget()
-    {
-        Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        RaycastHit2D ray = Physics2D.Raycast(mousePos, Vector2.zero);
-
-        if (ray && ray.collider.CompareTag("Linkable"))
-        {
-            _linkedTarget = ray.collider.gameObject;
-            _line.enabled = true;
-        }
     }
 
-    // 弹力计算
+   
+    
+
+
+
+
     void ApplyLinkForce()
     {
         Rigidbody2D targetRb = _linkedTarget.GetComponent<Rigidbody2D>();
@@ -169,152 +148,79 @@ public class LinkController : MonoBehaviour
         Vector2 dir = _linkedTarget.transform.position - transform.position;
         float dist = dir.magnitude;
         Vector2 dirNorm = dir.normalized;
-
-        float offset = dist - ropeDefaultLength;
-        if (offset < 0) offset = 0;
-
+        float offset = Mathf.Max(dist - ropeDefaultLength, 0);
         Vector2 force = dirNorm * offset * ropeForce;
 
-        // 按大小比例分配受力（你要的参数）
         float totalSize = playerSize + linkable.targetSize;
-        Vector2 playerForce = force * (linkable.targetSize / totalSize);
-        Vector2 targetForce = -force * (playerSize / totalSize);
-
-        _rb.AddForce(playerForce);
-        targetRb.AddForce(targetForce);
+        _rb.AddForce(force * (linkable.targetSize / totalSize));
+        targetRb.AddForce(-force * (playerSize / totalSize));
     }
 
-    // 绳子渲染
     void UpdateRopeVisual()
     {
-        _line.SetPosition(0, transform.position);
-        _line.SetPosition(1, _linkedTarget.transform.position);
         if (_linkedTarget != null)
         {
-            Debug.Log("Updating rope from " + transform.position + " to " + _linkedTarget.transform.position);
             _line.SetPosition(0, transform.position);
             _line.SetPosition(1, _linkedTarget.transform.position);
         }
     }
-    // 这个函数负责更新链接时间，并在超过阈值后触发缩小和变形
+
     void UpdateLinkDurationAndShrink()
     {
-        // 安全校验：目标为空直接退出（避免空引用）
         if (_linkedTarget == null) return;
-
-        // 如果链接对象是地面或墙，则不进行缩小和变形
         if (_linkedTarget.CompareTag(groundTag) || _linkedTarget.CompareTag(wallTag))
         {
             _currentLinkDuration = 0f;
             return;
         }
 
-        // 增加链接时间
         _currentLinkDuration += Time.fixedDeltaTime;
 
-        // 打印当前链接时间（仅每0.1秒打印一次，避免控制台刷屏）
-        if (Time.frameCount % 6 == 0)
+        // 超过阈值开始缩小
+        if (_currentLinkDuration > linkDurationThreshold)
         {
-            Debug.Log($"当前链接时间: {_currentLinkDuration:F2} 秒");
-        }
-
-        // 5. 超过阈值后执行：先缩小，后变形，变形后锁定缩放
-        if (_currentLinkDuration > linkDurationThreshold && !_hasPermanentlyShrunk)
-        {
-            // ===== 核心缩放逻辑：缩放到「变形基准大小的90%」=====
-            // 变形触发前：持续缩小，最小值 = _shapeChangeBaseSize * 0.9
-            float minSizeForThisShape = _shapeChangeBaseSize * 0.9f;
-            // 持续缩小目标大小
+            float minSize = _shapeChangeBaseSize * 0.9f;
             _targetPlayerSize -= sizeReductionPerSecond * Time.fixedDeltaTime;
-            // 锁定最小值为当前基准的90%
-            _targetPlayerSize = Mathf.Max(_targetPlayerSize, minSizeForThisShape);
-
-            // 修复缩放抖动：直接基于当前基准设置目标缩放（避免比例累积错误）
+            _targetPlayerSize = Mathf.Max(_targetPlayerSize, minSize);
             _targetScale = Vector3.one * _targetPlayerSize;
+        }
 
-            // ===== 变形触发逻辑：达到延迟时间后执行 =====
-            if (_currentLinkDuration > linkDurationThreshold + shapeChangeDelay && !_isShapeChanged && !_hasPermanentlyChanged)
-            {
-                // 变形时：更新「下一次缩放的基准大小」为「当前变形后的大小」
-                _shapeChangeBaseSize = _targetPlayerSize;
-                // 执行变形
-                ChangeToLinkedShape();
-                // 变形后锁定缩放，本次链接不再缩小
-                _hasPermanentlyShrunk = true;
-                Debug.Log($"变形成功！新的缩放基准为: {_shapeChangeBaseSize:F2}，最小缩放为: {_shapeChangeBaseSize * 0.9f:F2}");
-            }
-        
-
-        // 2. 处理形状变化：满足时间条件且未变形时执行
-        if (_currentLinkDuration > linkDurationThreshold + shapeChangeDelay && !_isShapeChanged && !_hasPermanentlyChanged)
-            {
-                ChangeToLinkedShape();
-            }
+        // 满足延迟 → 变形（每次链接都能变）
+        if (_currentLinkDuration > linkDurationThreshold + shapeChangeDelay && !_isShapeChanged)
+        {
+            ChangeToLinkedShape();
         }
     }
 
-
-    // 变成所链接的形状
     void ChangeToLinkedShape()
+    {
+        if (_linkedTarget == null) return;
+        SpriteRenderer sr = _linkedTarget.GetComponent<SpriteRenderer>();
+        if (sr != null && sr.sprite != null)
         {
-
-            if (_linkedTarget == null)
-            {
-                Debug.LogError("链接目标为空，无法变形！");
-                return;
-            }
-
-            SpriteRenderer targetSpriteRenderer = _linkedTarget.GetComponent<SpriteRenderer>();
-            if (targetSpriteRenderer == null)
-            {
-                Debug.LogError($"目标对象 {_linkedTarget.name} 缺少 SpriteRenderer 组件！");
-                return;
-            }
-
-            if (targetSpriteRenderer.sprite == null)
-            {
-                Debug.LogError($"目标对象 {_linkedTarget.name} 的 SpriteRenderer 没有赋值 Sprite！");
-                return;
-            }
-            Debug.Log($"时间: {_currentLinkDuration:F2}, 阈值+延迟: {linkDurationThreshold + shapeChangeDelay:F2}, 是否变形过: {_isShapeChanged}");
-
-            _targetShapeSprite = targetSpriteRenderer.sprite;
-            _playerSpriteRenderer.sprite = _targetShapeSprite;
+            _playerSpriteRenderer.sprite = sr.sprite;
             _isShapeChanged = true;
-            Debug.Log($"玩家成功变成了 {_linkedTarget.name} 的形状！");
-
-
-            if (_linkedTarget == null) return;
-
-
+            // 根据目标物体标签设置形状（需给 Linkable 物体打标签：Circle/Triangle/Square）
+            if (_linkedTarget.CompareTag("Circle")) currentShape = 0;
+            else if (_linkedTarget.CompareTag("Triangle")) currentShape = 1;
+            else if (_linkedTarget.CompareTag("Square")) currentShape = 2;
         }
-
-
-        // 恢复到原始形状
-        void RevertToOriginalShape()
-        {
-            if (_playerSpriteRenderer != null)
-            {
-                _playerSpriteRenderer.sprite = defaultPlayerSprite;
-                _isShapeChanged = false;
-                Debug.Log("玩家恢复了原始形状");
-            }
-        }
-
-        // 断开
-        void BreakLink()
-        {
-            _isLinking = false;
-            _linkedTarget = null;
-            _line.enabled = false;
-        // 断开链接时，恢复原始形状和大小
-        // 重置：单次链接的计时和缩放锁（关键！让下次链接重新计算）
-        _currentLinkDuration = 0f;
-        _hasPermanentlyShrunk = false;
-
-        // 保留：永久变形和当前大小（不重置 _targetPlayerSize 和 _shapeChangeBaseSize）
-        Debug.Log("链接断开，保留当前大小和形状，下次链接将以当前大小为基准缩小到90%");
-    
-}
     }
 
+    void BreakLink()
+    {
+        _isLinking = false;
+        _linkedTarget = null;
+        _line.enabled = false;
+        _currentLinkDuration = 0f;
+        _isShapeChanged = false;
+
+       
+    }
+    public void ForceShrink(float scaleMultiplier)
+    {
+        _targetPlayerSize *= scaleMultiplier;
+        _targetScale = Vector3.one * _targetPlayerSize;
+        _shapeChangeBaseSize = _targetPlayerSize; // 更新基准，避免后续缩放异常
+    }
+}
