@@ -103,6 +103,8 @@ public class LinkShapeShrink : MonoBehaviour
             _isShapeChanged = false; // 允许本次重新变形
         }
     }
+    
+
 
     void ApplyLinkForce()
     {
