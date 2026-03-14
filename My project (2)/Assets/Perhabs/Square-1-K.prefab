@@ -16,7 +16,7 @@ GameObject:
   - component: {fileID: 5033496779251490840}
   m_Layer: 0
   m_Name: Square-1-K
-  m_TagString: Linkable
+  m_TagString: Square
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
