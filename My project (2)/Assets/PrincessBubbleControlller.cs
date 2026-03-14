@@ -4,8 +4,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 
-
-
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
@@ -29,97 +27,107 @@ public class PrincessBubbleController : MonoBehaviour
 
     [Header("玩家引用")]
     public LinkShapeShrink playerScript;
-    private Transform _playerTransform;
 
+    private Transform _playerTransform;
     private int _currentActiveShape = -1;
     private bool _isPlayerInContact = false;
 
     void Start()
     {
-        _playerTransform = playerScript.GetComponent<Transform>();
+        // 安全获取玩家
+        if (playerScript != null)
+            _playerTransform = playerScript.transform;
+        else
+            Debug.LogError("请在Inspector拖入 playerScript!");
+
         SetAllShapesInactive();
         StartCoroutine(RandomShapeBlink());
 
         if (princessCamera != null)
             princessCamera.enabled = true;
-        if (minimapDisplay != null)
+        if (minimapDisplay != null && princessCamera != null)
             minimapDisplay.texture = princessCamera.targetTexture;
     }
 
     void Update()
     {
+        if (_playerTransform == null) return;
+
+        // 相机跟随
         if (princessCamera != null && !_isPlayerInContact)
         {
             Vector3 targetPos = new Vector3(transform.position.x, transform.position.y + 2f, princessCamera.transform.position.z);
             princessCamera.transform.position = Vector3.Lerp(princessCamera.transform.position, targetPos, cameraFollowSpeed * Time.deltaTime);
         }
 
+        // 判断是否靠近
         float distToPlayer = Vector2.Distance(transform.position, _playerTransform.position);
-        if (distToPlayer < 1.5f)
-        {
-            _isPlayerInContact = true;
+        _isPlayerInContact = distToPlayer < 1.5f;
+
+        if (_isPlayerInContact)
             HideBubbleAndCamera();
-        }
         else
-        {
-            _isPlayerInContact = false;
             ShowBubbleAndCamera();
-        }
     }
 
     IEnumerator RandomShapeBlink()
     {
         while (true)
         {
-            if (_isPlayerInContact)
+            // 玩家靠近时暂停逻辑
+            if (_isPlayerInContact || _playerTransform == null || playerScript == null)
             {
                 yield return null;
                 continue;
             }
 
-            // 1. 随机出新形状
+            // 1. 随机形状
             int newShape = Random.Range(0, 3);
-
-            // 2. 先全部变灰，再把新形状变绿【给玩家看提示】
             SetAllShapesInactive();
             ActivateShape(newShape);
-
             _currentActiveShape = newShape;
 
-            // 3. 等待玩家反应
+            Debug.Log($"本轮要求形状: {newShape}");
 
-            yield return new WaitForSeconds(responseTime + 0.5f);
+            // 2. 给玩家反应时间
+            yield return new WaitForSeconds(responseTime);
 
+            // 3. 【关键】判断玩家当前形状
+            int playerShape = GetPlayerCurrentShape();
+            bool isMatch = playerShape == _currentActiveShape;
 
-            // 4. 检查是否匹配
-            bool isMatch = GetPlayerCurrentShape() == _currentActiveShape;
+            Debug.Log($"玩家形状: {playerShape}  |  要求: {_currentActiveShape}  |  是否匹配: {isMatch}");
 
+            // 4. 不匹配且玩家不在身边 → 传送
             if (!isMatch && !_isPlayerInContact)
             {
-                // 不匹配 → 传送
                 Transform respawnPoint = GameObject.Find("RespawnPoint")?.transform;
                 if (respawnPoint != null)
                 {
                     _playerTransform.position = respawnPoint.position;
                     _playerTransform.localScale = Vector3.one;
-                    Debug.Log(" 形状不匹配，传送至复活点");
+                    Debug.Log(" 形状不匹配，传送回复活点");
+                }
+                else
+                {
+                    Debug.LogError("场景里找不到名为 RespawnPoint 的物体");
                 }
             }
-            else
+            else if (isMatch)
             {
                 Debug.Log(" 形状匹配成功！");
             }
 
-            // 5. 等待到下一轮
+            // 5. 下一轮间隔
             yield return new WaitForSeconds(changeInterval - responseTime);
         }
     }
 
     void SetAllShapesInactive()
     {
-        circleImg.color = inactiveColor;
-        triangleImg.color = inactiveColor;
-        squareImg.color = inactiveColor;
+        if (circleImg != null) circleImg.color = inactiveColor;
+        if (triangleImg != null) triangleImg.color = inactiveColor;
+        if (squareImg != null) squareImg.color = inactiveColor;
     }
 
     void ActivateShape(int shapeIndex)
@@ -127,14 +135,16 @@ public class PrincessBubbleController : MonoBehaviour
         SetAllShapesInactive();
         switch (shapeIndex)
         {
-            case 0: circleImg.color = activeColor; break;
-            case 1: triangleImg.color = activeColor; break;
-            case 2: squareImg.color = activeColor; break;
+            case 0: if (circleImg != null) circleImg.color = activeColor; break;
+            case 1: if (triangleImg != null) triangleImg.color = activeColor; break;
+            case 2: if (squareImg != null) squareImg.color = activeColor; break;
         }
     }
 
+    // 获取玩家形状
     private int GetPlayerCurrentShape()
     {
+        if (playerScript == null) return -1;
         return playerScript.currentShape;
     }
 

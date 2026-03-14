@@ -12,11 +12,11 @@ EditorBuildSettings:
     path: Assets/Scenes/SampleScene.unity
     guid: 2cda990e2423bbf4892e6590ba056729
   - enabled: 1
-    path: Assets/Scenes/Fail.unity
-    guid: f9f909c326ee72f43991198ee484a3f8
-  - enabled: 1
     path: Assets/Scenes/Win.unity
     guid: f59afb6caeecd844d9a677fadc03d206
+  - enabled: 1
+    path: Assets/Scenes/Fail.unity
+    guid: f9f909c326ee72f43991198ee484a3f8
   - enabled: 1
     path: Assets/Scenes/ContinueScene.unity
     guid: e48370ce7928fc44c8eee16bba56b793
