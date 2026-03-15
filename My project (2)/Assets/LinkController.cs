@@ -101,8 +101,7 @@ public class LinkShapeShrink : MonoBehaviour
                 Debug.Log(" 链接成功：" + ray.collider.gameObject.name);
 
                 _linkedTarget = ray.collider.gameObject;
-                _line.enabled = true;      // 强制开线
-                _line.positionCount = 2;   // 强制两点
+                _line.enabled = true;      
                 _shapeChangeBaseSize = _targetPlayerSize;
                 _isShapeChanged = false;
             }

@@ -9,6 +9,8 @@ TagManager:
   - Circle
   - Square
   - Trigeer
+  - Trigger
+  - Triangle
   layers:
   - Default
   - TransparentFX

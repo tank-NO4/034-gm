@@ -82,7 +82,13 @@ public class PrincessBubbleController : MonoBehaviour
             }
 
             // 1. 随机形状
-            int newShape = Random.Range(0, 3);
+            int newShape;
+            // 循环随机，直到和上一次不一样
+            do
+            {
+                newShape = Random.Range(0, 3);
+            } while (newShape == _currentActiveShape);
+
             SetAllShapesInactive();
             ActivateShape(newShape);
             _currentActiveShape = newShape;
