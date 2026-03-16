@@ -3,35 +3,18 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class GameFailManager : MonoBehaviour
+
+// 必须继承自 MonoBehaviour 才能挂载到 GameObject 上
+public class UIRestart : MonoBehaviour
 {
-    // 单例
-    public static GameFailManager Instance;
-
-    private void Awake()
+    // 重开按钮点击事件
+    public void OnRestartButtonClick()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
-    }
+        // 回到游戏场景（请将 "SampleScene" 替换为你的关卡场景名）
+        SceneManager.LoadScene("SampleScene");
 
-    // 【核心方法】阶段失败 / 主动重开
-    public void RestartCurrentStage()
-    {
-        // 1. 获取当前正在玩的场景名字
-        string currentSceneName = SceneManager.GetActiveScene().name;
-
-        // 2. 重新加载它，实现完全重置
-        SceneManager.LoadScene(currentSceneName);
-
-        // 🔥 如果你有玩家数据重置需求（如血量、分数），可以在这里写
-        // GameDataManager.Instance.ResetStageData();
+        // 可选：重置时间缩放（解决游戏暂停后重启的问题）
+        Time.timeScale = 5f;
     }
 }
 
