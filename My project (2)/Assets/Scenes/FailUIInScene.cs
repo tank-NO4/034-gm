@@ -13,7 +13,6 @@ public class FailUIInScene : MonoBehaviour
     void Awake()
     {
         RetryButton.onClick.AddListener(OnRetry);
-        BackToMenuButton.onClick.AddListener(OnBackToMenu);
     }
 
     public void OnRetry()
@@ -36,15 +35,30 @@ public class FailUIInScene : MonoBehaviour
         {
             player.transform.position = respawnPoint.position;
             player.transform.localScale = Vector3.one;
-            PlayerSizeFailure failure = player.GetComponent<PlayerSizeFailure>();
-            if (failure != null) failure.ResetFailureState();
+
+            // 安全获取组件并调用方法
+            if (player.TryGetComponent<PlayerSizeFailure>(out var failure))
+            {
+                failure.ResetFailureState();
+            }
+            else
+            {
+                Debug.LogWarning("Player 物体未挂载 PlayerSizeFailure 组件");
+            }
         }
     }
 
-    public void OnBackToMenu()
+    private bool _isFailed = false;
+
+    // 必须是 public，才能被外部脚本调用
+    public void ResetFailureState()
     {
-        Time.timeScale = 1;
-        SceneManager.LoadScene("StartScene");
+        // 在这里写重置失败状态的逻辑
+        _isFailed = false;
+        // 比如重置大小、恢复血量、清除标记等
+        transform.localScale = Vector3.one;
+        Debug.Log("玩家失败状态已重置");
     }
+
 }
     
