@@ -6,27 +6,22 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 
+
 public class TeleportWithFade : MonoBehaviour
 {
-    // 白屏过渡的 Image（拖入 UI 里的白色全屏 Image）
     [Header("白屏过渡图片")]
     public Image fadeImage;
 
-    // 淡入淡出的总时长（秒）
     [Header("过渡时长")]
     public float fadeDuration = 1f;
 
-    // 目标传送点（拖入目标 Transform）
     [Header("目标传送点")]
     public Transform targetTeleportPoint;
 
-    // 玩家标签（默认 "Player"，确保你的玩家对象有这个 Tag）
     private const string PlayerTag = "Player";
 
-    // 触发传送的入口方法（可由碰撞/按钮调用）
     public void StartTeleport()
     {
-        // 找到玩家
         GameObject player = GameObject.FindWithTag(PlayerTag);
         if (player == null)
         {
@@ -34,14 +29,12 @@ public class TeleportWithFade : MonoBehaviour
             return;
         }
 
-        // 启动过渡+传送协程
         StartCoroutine(FadeAndTeleportCoroutine(player.transform));
     }
 
-    // 核心协程：白屏淡入 → 传送 → 白屏淡出
     private IEnumerator FadeAndTeleportCoroutine(Transform playerTransform)
     {
-        // 1. 渐入白屏（透明 → 不透明）
+        // 1. 淡入白屏
         float timer = 0f;
         while (timer < fadeDuration)
         {
@@ -51,11 +44,18 @@ public class TeleportWithFade : MonoBehaviour
             yield return null;
         }
 
-        // 2. 执行传送：把玩家挪到目标点
+        // 2. 传送前：重置链接状态（关键修复）
+        LinkShapeShrink linkShrink = playerTransform.GetComponent<LinkShapeShrink>();
+        if (linkShrink != null)
+        {
+            linkShrink.ResetLinkStateForTeleport(); // 调用公开方法
+        }
+
+        // 3. 执行传送
         playerTransform.position = targetTeleportPoint.position;
         Debug.Log($"玩家已传送到：{targetTeleportPoint.name}");
 
-        // 3. 渐出白屏（不透明 → 透明）
+        // 4. 淡出白屏
         timer = 0f;
         while (timer < fadeDuration)
         {
@@ -66,7 +66,6 @@ public class TeleportWithFade : MonoBehaviour
         }
     }
 
-    // --- 可选：碰撞触发传送 ---
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (other.CompareTag(PlayerTag))

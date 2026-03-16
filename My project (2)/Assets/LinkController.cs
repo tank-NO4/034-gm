@@ -185,4 +185,15 @@ public class LinkShapeShrink : MonoBehaviour
 
 
     }
+    public void ResetLinkStateForTeleport()
+    {
+        // 完全复用 BreakLink() 的逻辑，确保所有链接状态清空
+        BreakLink();
+        // 如果需要额外重置形状，也可以在这里恢复默认 sprite
+        if (_playerSpriteRenderer != null && defaultPlayerSprite != null)
+        {
+            _playerSpriteRenderer.sprite = defaultPlayerSprite;
+        }
+    }
+
 }
