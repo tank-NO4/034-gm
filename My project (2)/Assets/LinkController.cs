@@ -88,29 +88,55 @@ public class LinkShapeShrink : MonoBehaviour
         transform.localScale = Vector3.Lerp(transform.localScale, _targetScale, shrinkAnimationSpeed * Time.fixedDeltaTime);
     }
 
-    void TryLinkTarget()
+[Header("链接范围")]
+public float maxLinkDistance = 30f;  // 根据场景增大
+
+void TryLinkTarget()
+{
+    float distanceToPlane = Mathf.Abs(0 - Camera.main.transform.position.z);
+    Vector3 mouseScreenPos = new Vector3(Input.mousePosition.x, Input.mousePosition.y, distanceToPlane);
+    Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(mouseScreenPos);
+
+    Collider2D hitCollider = Physics2D.OverlapPoint(mouseWorldPos);
+    if (hitCollider != null && hitCollider.TryGetComponent<LinkableTarget>(out _))
     {
-        Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        RaycastHit2D ray = Physics2D.Raycast(mousePos, Vector2.zero);
-
-        // 只要点到物体 + 有 LinkableTarget，就强制连线
-        if (ray && ray.collider != null)
+        // 检查是否在屏幕外太远（可根据需要保留或删除）
+        Vector3 viewportPos = Camera.main.WorldToViewportPoint(hitCollider.transform.position);
+        if (viewportPos.x < -0.2f || viewportPos.x > 1.2f || viewportPos.y < -0.2f || viewportPos.y > 1.2f)
         {
-            if (ray.collider.TryGetComponent<LinkableTarget>(out _))
-            {
-                Debug.Log(" 链接成功：" + ray.collider.gameObject.name);
+            Debug.Log("目标太靠屏幕外，忽略");
+            return;
+        }
 
-                _linkedTarget = ray.collider.gameObject;
-                _line.enabled = true;      
-                _shapeChangeBaseSize = _targetPlayerSize;
-                _isShapeChanged = false;
+        float distToPlayer = Vector2.Distance(transform.position, hitCollider.transform.position);
+        if (distToPlayer <= maxLinkDistance)
+        {
+            _linkedTarget = hitCollider.gameObject;
+            _line.enabled = true;
+            _shapeChangeBaseSize = _targetPlayerSize;
+            _isShapeChanged = false;
+
+            // ***** 新增：触发奖杯结算 *****
+            BossTrophyController trophy = hitCollider.GetComponent<BossTrophyController>();
+            if (trophy != null)
+            {
+                trophy.OnLinked();
+                // 可以选择在此处禁用后续链接逻辑（例如不再执行绳索拉扯）
+                // 或者直接 return，不再进行普通链接
             }
+
+            Debug.Log($"✅ 链接成功：{hitCollider.name}");
+        }
+        else
+        {
+            Debug.Log($"❌ 目标太远 ({distToPlayer:F2} > {maxLinkDistance})");
         }
     }
-
-
-
-
+    else
+    {
+        Debug.Log("❌ 没有点击到可链接目标");
+    }
+}
     void ApplyLinkForce()
     {
         Rigidbody2D targetRb = _linkedTarget.GetComponent<Rigidbody2D>();
