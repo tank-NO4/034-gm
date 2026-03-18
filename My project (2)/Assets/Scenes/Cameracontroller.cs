@@ -1,15 +1,16 @@
 using UnityEngine;
+using System.Collections;
 
 public class CameraController : MonoBehaviour
 {
     [Header("位置设置")]
     public Vector3 raisedPosition = new Vector3(0, 5, -10); // 目标位置（抬高Y轴）
-    public float moveDuration = 2f;
+    public float moveDuration = 2f;                         // 位置动画时长
 
-    [Header("大小设置（可选）")]
-    public bool changeSize = false;                // 是否同时改变摄像机大小
-    public float targetSize = 8f;                  // 目标正交大小（越大视野越广）
-    public float sizeDuration = 2f;
+    [Header("大小设置")]
+    public bool changeSize = true;                           // 是否改变正交大小
+    public float targetSize = 8f;                            // 目标大小（越大视野越广）
+    public float sizeDuration = 2f;                          // 大小变化时长
 
     private Vector3 originalPosition;
     private float originalSize;
@@ -22,28 +23,20 @@ public class CameraController : MonoBehaviour
             originalSize = Camera.main.orthographicSize;
     }
 
-    public void RaiseCamera()
+    /// <summary>
+    /// 启动摄像机动画（同时移动位置和改变大小），返回协程供外部等待
+    /// </summary>
+    public IEnumerator RaiseCameraCoroutine()
     {
-        if (!isAnimating)
-            StartCoroutine(AnimateCamera());
+        if (isAnimating) yield break;
+        yield return StartCoroutine(AnimateCamera());
     }
 
-    public void ResetCamera()
-    {
-        if (!isAnimating)
-            StartCoroutine(AnimateCamera(true));
-    }
-
-    private System.Collections.IEnumerator AnimateCamera(bool reset = false)
+    private IEnumerator AnimateCamera()
     {
         isAnimating = true;
-
         Vector3 startPos = transform.position;
-        Vector3 targetPos = reset ? originalPosition : raisedPosition;
-
         float startSize = Camera.main.orthographicSize;
-        float targetSizeValue = reset ? originalSize : targetSize;
-
         float elapsed = 0f;
         float maxDuration = Mathf.Max(moveDuration, changeSize ? sizeDuration : 0f);
 
@@ -53,19 +46,19 @@ public class CameraController : MonoBehaviour
             float t = elapsed / maxDuration;
 
             // 移动位置
-            transform.position = Vector3.Lerp(startPos, targetPos, t);
+            transform.position = Vector3.Lerp(startPos, raisedPosition, t);
 
             // 改变大小（如果启用）
             if (changeSize)
-                Camera.main.orthographicSize = Mathf.Lerp(startSize, targetSizeValue, t);
+                Camera.main.orthographicSize = Mathf.Lerp(startSize, targetSize, t);
 
             yield return null;
         }
 
         // 确保最终值准确
-        transform.position = targetPos;
+        transform.position = raisedPosition;
         if (changeSize)
-            Camera.main.orthographicSize = targetSizeValue;
+            Camera.main.orthographicSize = targetSize;
 
         isAnimating = false;
     }
