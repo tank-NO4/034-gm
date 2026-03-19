@@ -1,12 +1,6 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using System.Collections;
-
-using UnityEngine;
-using UnityEngine.UI;
-using System.Collections;
 
 public class PrincessBubbleController : MonoBehaviour
 {
@@ -28,20 +22,22 @@ public class PrincessBubbleController : MonoBehaviour
     [Header("玩家引用")]
     public LinkShapeShrink playerScript;
 
+    [Header("时间显示")]
+    public Text timeText;
+
+    [Header("进度条")] // 新增进度条字段
+    public Image progressBar;
+
     private Transform _playerTransform;
     private int _currentActiveShape = -1;
     private bool _isPlayerInContact = false;
 
-    [Header("时间显示")]
-    public Text timeText; // 拖入右上角的 Text
-                          // 内部计时器
     private float _changeTimer;
     private float _responseTimer;
     private bool _isInResponsePhase;
 
     void Start()
     {
-        // 安全获取玩家
         if (playerScript != null)
             _playerTransform = playerScript.transform;
         else
@@ -54,33 +50,51 @@ public class PrincessBubbleController : MonoBehaviour
             princessCamera.enabled = true;
         if (minimapDisplay != null && princessCamera != null)
             minimapDisplay.texture = princessCamera.targetTexture;
+
+        // 初始化计时器
+        _changeTimer = changeInterval;
+        _responseTimer = responseTime;
     }
 
     void Update()
     {
         if (_playerTransform == null) return;
+
         if (!_isInResponsePhase)
         {
-            // 20秒等待阶段
+            // 等待阶段计时
             _changeTimer -= Time.deltaTime;
-            timeText.text = $"公主等待: {_changeTimer:F1}s";
+            if (timeText != null)
+                timeText.text = $"公主等待: {_changeTimer:F1}s";
+
+            // 更新进度条（等待阶段）
+            if (progressBar != null)
+                progressBar.fillAmount = _changeTimer / changeInterval;
+
             if (_changeTimer <= 0)
             {
                 _isInResponsePhase = true;
-            
+                _responseTimer = responseTime; // 重置响应阶段计时器
             }
         }
         else
         {
-            // 6秒响应阶段
+            // 响应阶段计时
             _responseTimer -= Time.deltaTime;
-            timeText.text = $"公主响应: {_responseTimer:F1}s";
+            if (timeText != null)
+                timeText.text = $"公主响应: {_responseTimer:F1}s";
+
+            // 更新进度条（响应阶段）
+            if (progressBar != null)
+                progressBar.fillAmount = _responseTimer / responseTime;
+
             if (_responseTimer <= 0)
             {
                 _isInResponsePhase = false;
-   
+                _changeTimer = changeInterval; // 重置等待阶段计时器
             }
         }
+
         // 相机跟随
         if (princessCamera != null && !_isPlayerInContact)
         {
@@ -88,7 +102,7 @@ public class PrincessBubbleController : MonoBehaviour
             princessCamera.transform.position = Vector3.Lerp(princessCamera.transform.position, targetPos, cameraFollowSpeed * Time.deltaTime);
         }
 
-        // 判断是否靠近
+        // 判断是否靠近玩家
         float distToPlayer = Vector2.Distance(transform.position, _playerTransform.position);
         _isPlayerInContact = distToPlayer < 1.5f;
 
@@ -102,16 +116,13 @@ public class PrincessBubbleController : MonoBehaviour
     {
         while (true)
         {
-            // 玩家靠近时暂停逻辑
             if (_isPlayerInContact || _playerTransform == null || playerScript == null)
             {
                 yield return null;
                 continue;
             }
 
-            // 1. 随机形状
             int newShape;
-            // 循环随机，直到和上一次不一样
             do
             {
                 newShape = Random.Range(0, 3);
@@ -120,19 +131,14 @@ public class PrincessBubbleController : MonoBehaviour
             SetAllShapesInactive();
             ActivateShape(newShape);
             _currentActiveShape = newShape;
-
             Debug.Log($"本轮要求形状: {newShape}");
 
-            // 2. 给玩家反应时间
             yield return new WaitForSeconds(responseTime);
 
-            // 3. 【关键】判断玩家当前形状
             int playerShape = GetPlayerCurrentShape();
             bool isMatch = playerShape == _currentActiveShape;
-
             Debug.Log($"玩家形状: {playerShape}  |  要求: {_currentActiveShape}  |  是否匹配: {isMatch}");
 
-            // 4. 不匹配且玩家不在身边 → 传送
             if (!isMatch && !_isPlayerInContact)
             {
                 Transform respawnPoint = GameObject.Find("RespawnPoint")?.transform;
@@ -140,7 +146,7 @@ public class PrincessBubbleController : MonoBehaviour
                 {
                     _playerTransform.position = respawnPoint.position;
                     _playerTransform.localScale = Vector3.one;
-                    Debug.Log(" 形状不匹配，传送回复活点");
+                    Debug.Log("形状不匹配，传送回复活点");
                 }
                 else
                 {
@@ -149,10 +155,9 @@ public class PrincessBubbleController : MonoBehaviour
             }
             else if (isMatch)
             {
-                Debug.Log(" 形状匹配成功！");
+                Debug.Log("形状匹配成功！");
             }
 
-            // 5. 下一轮间隔
             yield return new WaitForSeconds(changeInterval - responseTime);
         }
     }
@@ -175,7 +180,6 @@ public class PrincessBubbleController : MonoBehaviour
         }
     }
 
-    // 获取玩家形状
     private int GetPlayerCurrentShape()
     {
         if (playerScript == null) return -1;
