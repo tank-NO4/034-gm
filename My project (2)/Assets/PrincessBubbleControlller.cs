@@ -32,6 +32,13 @@ public class PrincessBubbleController : MonoBehaviour
     private int _currentActiveShape = -1;
     private bool _isPlayerInContact = false;
 
+    [Header("时间显示")]
+    public Text timeText; // 拖入右上角的 Text
+                          // 内部计时器
+    private float _changeTimer;
+    private float _responseTimer;
+    private bool _isInResponsePhase;
+
     void Start()
     {
         // 安全获取玩家
@@ -52,7 +59,28 @@ public class PrincessBubbleController : MonoBehaviour
     void Update()
     {
         if (_playerTransform == null) return;
-
+        if (!_isInResponsePhase)
+        {
+            // 20秒等待阶段
+            _changeTimer -= Time.deltaTime;
+            timeText.text = $"公主等待: {_changeTimer:F1}s";
+            if (_changeTimer <= 0)
+            {
+                _isInResponsePhase = true;
+            
+            }
+        }
+        else
+        {
+            // 6秒响应阶段
+            _responseTimer -= Time.deltaTime;
+            timeText.text = $"公主响应: {_responseTimer:F1}s";
+            if (_responseTimer <= 0)
+            {
+                _isInResponsePhase = false;
+   
+            }
+        }
         // 相机跟随
         if (princessCamera != null && !_isPlayerInContact)
         {
