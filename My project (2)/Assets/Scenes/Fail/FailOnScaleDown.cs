@@ -1,33 +1,44 @@
 using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class FailOnScaleDown : MonoBehaviour
 {
-    // Ê§°ÜãĞÖµ£ºÍæ¼ÒËõ·ÅĞ¡ÓÚµÈÓÚ´ËÖµÊ±´¥·¢ÖØÆô
-    [Header("Ê§°ÜËõ·ÅãĞÖµ")]
+    [Header("å¤±è´¥ç¼©æ”¾é˜ˆå€¼")]
     public float failScaleThreshold = 0.3f;
+
+    [Header("å¤±è´¥åç­‰å¾…æ—¶é—´ï¼ˆç§’ï¼‰")]
+    public float waitBeforeReturn = 5f;
+
+    [Header("åœºæ™¯åç§°")]
+    public string failSceneName = "Fail";          // å¤±è´¥åœºæ™¯
+    public string mainSceneName = "SampleScene";   // ä¸»åœºæ™¯
 
     void Update()
     {
-        // ¼ì²âÍæ¼Òµ±Ç°Ëõ·Å£¨È¡ x Öá£¬2D/3D Í¨ÓÃ£©
-        float currentScale = transform.localScale.x;
-
-        // µ±Ëõ·ÅĞ¡ÓÚµÈÓÚãĞÖµÊ±£¬´¥·¢Ê§°ÜÂß¼­
-        if (currentScale <= failScaleThreshold)
+        if (transform.localScale.x <= failScaleThreshold)
         {
             OnPlayerFailed();
         }
     }
 
-    // Ê§°Ü´¦ÀíÂß¼­
     void OnPlayerFailed()
     {
-        Debug.Log("Íæ¼ÒËõĞ¡µ½ãĞÖµÒÔÏÂ£¬´¥·¢ÖØÆô£¡");
-        // ÖØĞÂ¼ÓÔØµ±Ç°³¡¾°
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        Debug.Log("ç¼©æ”¾å°äºé˜ˆå€¼ï¼Œè¿›å…¥å¤±è´¥æµç¨‹");
+        // åœæ­¢å¯èƒ½é‡å¤è§¦å‘çš„åç¨‹ï¼ˆé˜²æ­¢å¤šæ¬¡è°ƒç”¨ï¼‰
+        StopAllCoroutines();
+        StartCoroutine(FailSequence());
+    }
+
+    IEnumerator FailSequence()
+    {
+        // 1. åŠ è½½å¤±è´¥åœºæ™¯
+        SceneManager.LoadScene(failSceneName);
+
+        // 2. ç­‰å¾…æŒ‡å®šç§’æ•°ï¼ˆè¿™é‡Œç”¨åœºæ™¯æ—¶é—´ï¼Œä¸å— Time.timeScale å½±å“ï¼‰
+        yield return new WaitForSeconds(waitBeforeReturn);
+
+        // 3. åŠ è½½ä¸»åœºæ™¯ï¼Œé‡ç½®æ¸¸æˆ
+        SceneManager.LoadScene(mainSceneName);
     }
 }
